@@ -4,24 +4,24 @@ import (
 	"fmt"
 
 	"example.com/price-calculator/conversion"
-	"example.com/price-calculator/filemanager"
+	"example.com/price-calculator/iomanager"
 )
 
 type TaxIncludedPriceJob struct {
 	// json:"-" -> indicates ignored when tranform to json this struct
-	IOManager         filemanager.FileManager `json:"-"`
-	TaxRate           float64                 `json:"tax_rate"`
-	InputPrices       []float64               `json:"input_prices"`
-	TaxIncludedPrices map[string]string       `json:"tax_included_prices"`
+	IOManager         iomanager.IOManager `json:"-"`
+	TaxRate           float64             `json:"tax_rate"`
+	InputPrices       []float64           `json:"input_prices"`
+	TaxIncludedPrices map[string]string   `json:"tax_included_prices"`
 }
 
-func (job *TaxIncludedPriceJob) LoadData() {
+func (job *TaxIncludedPriceJob) LoadData() error {
 	lines, err := job.IOManager.ReadLines()
 
 	if err != nil {
 		fmt.Println("Error opening file to read data.")
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	prices, err := conversion.StringsToFloats(lines)
@@ -29,14 +29,21 @@ func (job *TaxIncludedPriceJob) LoadData() {
 	if err != nil {
 		fmt.Println("error converting strings to floats conversion.")
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	job.InputPrices = prices
+
+	return nil
 }
 
-func (job *TaxIncludedPriceJob) Process() {
-	job.LoadData()
+func (job *TaxIncludedPriceJob) Process() error {
+	err := job.LoadData()
+
+	if err != nil {
+		return err
+	}
+
 	result := make(map[string]string)
 
 	for _, price := range job.InputPrices {
@@ -46,17 +53,12 @@ func (job *TaxIncludedPriceJob) Process() {
 
 	job.TaxIncludedPrices = result
 
-	err := job.IOManager.WriteJson(job)
-
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	return job.IOManager.WriteJson(job)
 }
 
-func NewTaxIncludedPriceJob(taxRate float64, fm *filemanager.FileManager) *TaxIncludedPriceJob {
+func NewTaxIncludedPriceJob(taxRate float64, iom iomanager.IOManager) *TaxIncludedPriceJob {
 	return &TaxIncludedPriceJob{
-		IOManager:   *fm,
+		IOManager:   iom,
 		InputPrices: []float64{10, 20, 30},
 		TaxRate:     taxRate,
 	}
